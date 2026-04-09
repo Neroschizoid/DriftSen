@@ -63,7 +63,7 @@ def get_producer():
             logger.info(f"Connected to Kafka at {kafka_url}")
             return _producer
         except Exception as e:
-            logger.warning(f"Retry {i+1}/5: Kafka not ready...")
+            logger.warning(f"Retry {i+1}/5: Kafka not ready ({type(e).__name__}: {e})")
             time.sleep(2)
 
     logger.error("Kafka connection failed after retries")
