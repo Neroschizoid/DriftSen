@@ -1,49 +1,60 @@
 import os
 import json
+import time
 from kafka import KafkaProducer
 from utils.logger import logger
 
 _producer = None
 
-import time
-
 def get_producer():
     global _producer
-    if _producer is None:
-        if os.getenv("KAFKA_ENABLED", "true").lower() == "false":
-            logger.info("Kafka is disabled via environment variable.")
-            return None
 
-        kafka_url = os.getenv("KAFKA_URL", "kafka:9092")
-        for i in range(10):  # retry
-            try:
-                _producer = KafkaProducer(
-                    bootstrap_servers=[kafka_url],
-                    value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-                    api_version=(2, 8, 1)
-                )
-                logger.info(f"Kafka connected to {kafka_url}")
-                return _producer
-            except Exception as e:
-                logger.warning(f"Retry {i+1}/10: Kafka not ready...")
-                time.sleep(2)
-
-        logger.error("Kafka connection failed after retries")
+    # 🔴 1. Disable Kafka if needed (VERY IMPORTANT)
+    if os.getenv("KAFKA_ENABLED", "false").lower() != "true":
+        logger.info("Kafka disabled — running in fallback mode")
         return None
 
-    return _producer
+    if _producer is not None:
+        return _producer
+
+    kafka_url = os.getenv("KAFKA_URL")
+
+    if not kafka_url:
+        logger.warning("KAFKA_URL not set — skipping Kafka")
+        return None
+
+    # 🔁 Retry connection
+    for i in range(5):
+        try:
+            _producer = KafkaProducer(
+                bootstrap_servers=[kafka_url],
+                value_serializer=lambda v: json.dumps(v).encode("utf-8")
+            )
+            logger.info(f"Connected to Kafka at {kafka_url}")
+            return _producer
+        except Exception as e:
+            logger.warning(f"Retry {i+1}/5: Kafka not ready...")
+            time.sleep(2)
+
+    logger.error("Kafka connection failed after retries")
+    return None
+
 
 def produce_inference_event(topic: str, request_id: str, features: dict, prediction: int, confidence: float, timestamp: str):
     producer = get_producer()
-    if producer:
-        event = {
-            "timestamp": timestamp,
-            "request_id": request_id,
-            "features": features,
-            "prediction": prediction,
-            "confidence": confidence
-        }
-        try:
-            producer.send(topic, value=event)
-        except Exception as e:
-            logger.error(f"Failed to produce Kafka message: {e}")
+
+    if not producer:
+        return  # ✅ SAFE EXIT
+
+    event = {
+        "timestamp": timestamp,
+        "request_id": request_id,
+        "features": features,
+        "prediction": prediction,
+        "confidence": confidence
+    }
+
+    try:
+        producer.send(topic, value=event)
+    except Exception as e:
+        logger.error(f"Kafka send failed: {e}")
