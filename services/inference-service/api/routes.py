@@ -9,6 +9,10 @@ from datetime import datetime
 
 router = APIRouter()
 
+@router.get("/health")
+def health_check():
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
 LOG_FILE = os.path.join(os.path.dirname(__file__), "../../../logs/inference.log")
 
 def write_log_entry(req_id: str, features: dict, pred: int, conf: float):
