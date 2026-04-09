@@ -34,6 +34,85 @@ DriftSentinel uses a decoupled two-service architecture:
 - Includes one-click runbook actions for demo steps.
 - Supports mode-based traffic simulation (normal, gradual, sudden).
 
+## Folder Roles (Talk Track)
+Use this as a quick presenter script when walking through the repo:
+
+1. **`services/` -> Runtime application layer**
+- `inference-service/`: serves predictions and emits monitoring events.
+- `monitoring-service/`: consumes events, computes drift, serves dashboard APIs/UI.
+
+2. **`ml/` -> Model and statistical baseline layer**
+- `models/`: trained model artifact used by inference.
+- `stats/`: training-time baseline statistics for drift comparison.
+- `training/`: scripts for preprocessing, validation, and retraining.
+
+3. **`infra/` -> Deployment and orchestration layer**
+- `docker/`: service container definitions.
+- `kafka/`: messaging setup notes.
+- root `docker-compose.yml`: local full-stack wiring.
+
+4. **`tests/` -> Quality and confidence layer**
+- Unit and integration checks for inference, monitoring, and Kafka flow.
+
+5. **`docs/` -> Project communication layer**
+- Architecture, workflow, deployment, evaluation trackers, and this storyline.
+
+6. **Root files -> Project control layer**
+- `README.md`: entrypoint for setup and usage.
+- `requirements.txt`: dependency lock for Python services.
+- `pytest.ini`: shared test configuration.
+
+## Role Demo Q&A (Question + Answer)
+Use this section for role-wise demo speaking prompts.
+
+1. **ML Engineer**
+- Question: Where does the model and baseline come from?
+- Answer: The model is loaded from `ml/models/model.pkl`, and baseline feature distributions come from `ml/stats/baseline_stats.json`, generated from training data.
+- Question: Why do we compare live data with training-time stats?
+- Answer: Drift means live inputs no longer match what the model learned on, so training baselines are the reference point for detecting reliability risk.
+- Question: What should we expect in Normal, Gradual, and Sudden modes?
+- Answer: Normal stays near stable drift scores, Gradual rises slowly over time, and Sudden jumps quickly to high-severity drift.
+
+2. **Backend / Inference Engineer**
+- Question: What happens when a request hits `POST /predict`?
+- Answer: Input is validated, the model predicts class/confidence, the response is returned quickly, and the event is logged and published for monitoring.
+- Question: How do we keep inference fast while still monitoring?
+- Answer: Monitoring is asynchronous through logs/Kafka, so drift checks do not block prediction response time.
+- Question: Where is inference evidence stored?
+- Answer: Prediction events are written to `logs/inference.log` and can also flow through Kafka for downstream monitoring.
+
+3. **Monitoring Engineer**
+- Question: How does monitoring ingest events?
+- Answer: It consumes from Kafka first, and can fall back to log-tail mode from inference logs if needed.
+- Question: How is drift computed in practice?
+- Answer: Recent events are kept in a sliding window, then statistical checks (KS test, with z-score support) run every configured interval.
+- Question: How do severity levels work?
+- Answer: Drift score thresholds map to NONE/LOW/MEDIUM/HIGH and high-confidence drift states are logged as alerts.
+
+4. **DevOps / Infra Engineer**
+- Question: What components are running in this stack?
+- Answer: `docker-compose.yml` wires inference service, monitoring service, Kafka, and supporting runtime dependencies into one local environment.
+- Question: What should be verified before demo execution?
+- Answer: Service health endpoints, Kafka availability, and log paths should all be healthy before running traffic simulation modes.
+- Question: What is our audit trail during demo?
+- Answer: `logs/inference.log` and `logs/drift_alerts.log` are the primary traceable artifacts used as operational evidence.
+
+5. **QA / Test Engineer**
+- Question: How is quality validated?
+- Answer: Unit tests verify core logic, integration tests verify service contracts and Kafka flow, and operational checks verify health/drift/log outputs.
+- Question: Which demo claims are test-backed?
+- Answer: API behavior, payload handling, drift primitives, and Kafka event path are test-backed; live drift visualization is demonstrated at runtime.
+- Question: What limitation should we disclose?
+- Answer: Historical long-term drift persistence and full automation loops (like auto-retraining) are roadmap items, not fully productionized yet.
+
+6. **Presenter / Product Owner**
+- Question: What is the one-line project story?
+- Answer: DriftSentinel detects silent ML degradation early by combining fast inference with continuous, real-time drift monitoring.
+- Question: What business value should be emphasized?
+- Answer: Faster detection of model risk, better auditability, and improved trust in predictions for operational decision-making.
+- Question: How should we close the demo?
+- Answer: Summarize proof points (API response, severity change, logs, tests) and then tie roadmap items to scale and governance outcomes.
+
 ## Demo
 The demo is designed to run fully from dashboard controls (minimal terminal dependence).
 

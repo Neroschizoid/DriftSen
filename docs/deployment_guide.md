@@ -17,6 +17,14 @@ Endpoints:
 Inference:
 - `KAFKA_ENABLED=true` to publish events to Kafka
 - `KAFKA_URL=kafka:9092` for container-to-container networking
+- Optional managed Kafka auth/TLS:
+  - `KAFKA_SECURITY_PROTOCOL` (`PLAINTEXT`, `SSL`, or `SASL_SSL`)
+  - `KAFKA_SASL_MECHANISM` (for example `PLAIN`)
+  - `KAFKA_USERNAME`
+  - `KAFKA_PASSWORD`
+  - `KAFKA_SSL_CAFILE`
+  - `KAFKA_SSL_CERTFILE`
+  - `KAFKA_SSL_KEYFILE`
 
 Monitoring:
 - `KAFKA_ENABLED=false` for log-tail mode or `true` for Kafka mode
@@ -24,6 +32,15 @@ Monitoring:
 - `WINDOW_SIZE=100`
 - `DRIFT_EVERY_N_EVENTS=10`
 - `DRIFT_METHOD=ks`
+- `INFERENCE_URL=http://inference:8000/api/v1` (set to public URL in cloud)
+- Optional managed Kafka auth/TLS (same variables as inference):
+  - `KAFKA_SECURITY_PROTOCOL`
+  - `KAFKA_SASL_MECHANISM`
+  - `KAFKA_USERNAME`
+  - `KAFKA_PASSWORD`
+  - `KAFKA_SSL_CAFILE`
+  - `KAFKA_SSL_CERTFILE`
+  - `KAFKA_SSL_KEYFILE`
 
 ## Train/Refresh Baseline Artifacts
 

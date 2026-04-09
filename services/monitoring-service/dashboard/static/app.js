@@ -1,5 +1,5 @@
 const monitoringBase = `${window.location.origin}/api/v1/monitoring`;
-const inferenceBase = `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
+let inferenceBase = `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
 
 const monitorStatusEl = document.getElementById("monitor-status");
 const inferenceStatusEl = document.getElementById("inference-status");
@@ -186,6 +186,9 @@ async function refreshSnapshot() {
     setPill(monitorStatusEl, "Monitoring: Online", "ok");
     setPill(kafkaStatusEl, `Kafka: ${cfg.kafka_enabled ? "Enabled" : "Fallback(Log)"}`, cfg.kafka_enabled ? "ok" : "warn");
     driftMethodEl.textContent = String(cfg.drift_method || "--").toUpperCase();
+    if (cfg.inference_url) {
+      inferenceBase = String(cfg.inference_url).replace(/\/+$/, "");
+    }
 
     const score = Number(drift.drift_score || 0);
     driftScoreEl.textContent = score.toFixed(4);

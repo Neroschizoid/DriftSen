@@ -160,12 +160,36 @@ def _kafka_loop(fn):
     from kafka import KafkaConsumer
 
     logger.info(f"🔗 Kafka -> {KAFKA_URL}/{TOPIC}")
+    kafka_kwargs = {}
+    security_protocol = os.getenv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").strip().upper()
+    if security_protocol:
+        kafka_kwargs["security_protocol"] = security_protocol
+
+    username = os.getenv("KAFKA_USERNAME", "").strip()
+    password = os.getenv("KAFKA_PASSWORD", "").strip()
+    mechanism = os.getenv("KAFKA_SASL_MECHANISM", "PLAIN").strip().upper()
+    if username and password:
+        kafka_kwargs["sasl_mechanism"] = mechanism
+        kafka_kwargs["sasl_plain_username"] = username
+        kafka_kwargs["sasl_plain_password"] = password
+
+    cafile = os.getenv("KAFKA_SSL_CAFILE", "").strip()
+    certfile = os.getenv("KAFKA_SSL_CERTFILE", "").strip()
+    keyfile = os.getenv("KAFKA_SSL_KEYFILE", "").strip()
+    if cafile:
+        kafka_kwargs["ssl_cafile"] = cafile
+    if certfile:
+        kafka_kwargs["ssl_certfile"] = certfile
+    if keyfile:
+        kafka_kwargs["ssl_keyfile"] = keyfile
+
     consumer = KafkaConsumer(
         TOPIC,
         bootstrap_servers=[KAFKA_URL],
         auto_offset_reset="earliest",
         value_deserializer=lambda m: json.loads(m.decode("utf-8")),
         group_id="monitoring-service",
+        **kafka_kwargs,
     )
     for msg in consumer:
         fn(msg.value)

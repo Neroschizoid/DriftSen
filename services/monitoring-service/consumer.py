@@ -27,6 +27,33 @@ LOG_FILE      = os.path.join(os.path.dirname(__file__), "../../logs/inference.lo
 REQUIRED_FIELDS = {"timestamp", "request_id", "features", "prediction", "confidence"}
 
 
+def _kafka_client_kwargs() -> dict:
+    kwargs = {}
+    security_protocol = os.getenv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").strip().upper()
+    if security_protocol:
+        kwargs["security_protocol"] = security_protocol
+
+    username = os.getenv("KAFKA_USERNAME", "").strip()
+    password = os.getenv("KAFKA_PASSWORD", "").strip()
+    mechanism = os.getenv("KAFKA_SASL_MECHANISM", "PLAIN").strip().upper()
+    if username and password:
+        kwargs["sasl_mechanism"] = mechanism
+        kwargs["sasl_plain_username"] = username
+        kwargs["sasl_plain_password"] = password
+
+    cafile = os.getenv("KAFKA_SSL_CAFILE", "").strip()
+    certfile = os.getenv("KAFKA_SSL_CERTFILE", "").strip()
+    keyfile = os.getenv("KAFKA_SSL_KEYFILE", "").strip()
+    if cafile:
+        kwargs["ssl_cafile"] = cafile
+    if certfile:
+        kwargs["ssl_certfile"] = certfile
+    if keyfile:
+        kwargs["ssl_keyfile"] = keyfile
+
+    return kwargs
+
+
 def validate_event(event: dict) -> bool:
     missing = REQUIRED_FIELDS - event.keys()
     if missing:
@@ -53,6 +80,7 @@ def consume_kafka():
         auto_offset_reset="earliest",
         value_deserializer=lambda m: json.loads(m.decode("utf-8")),
         group_id="monitoring-service",
+        **_kafka_client_kwargs(),
     )
     logger.info("✅ Kafka Consumer connected — listening for events...\n")
     window = get_window(WINDOW_SIZE)
