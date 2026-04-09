@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DriftSentinel Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/dashboard/static/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>DriftSentinel</h1>
+      <p class="muted">Demo Control Panel</p>
+
+      <div class="status-stack">
+        <span id="monitor-status" class="pill">Monitoring: --</span>
+        <span id="inference-status" class="pill">Inference: --</span>
+        <span id="kafka-status" class="pill">Kafka: --</span>
+      </div>
+
+      <div class="section">
+        <label>Mode</label>
+        <select id="mode-select">
+          <option value="normal">Normal</option>
+          <option value="gradual" selected>Gradual Drift</option>
+          <option value="sudden">Sudden Drift</option>
+        </select>
+      </div>
+
+      <div class="two-col">
+        <div class="section">
+          <label>Steps</label>
+          <input id="mode-steps" type="number" min="1" value="60" />
+        </div>
+        <div class="section">
+          <label>Interval (ms)</label>
+          <input id="mode-interval" type="number" min="100" value="350" />
+        </div>
+      </div>
+
+      <button id="mode-start-btn" class="btn">Start Mode</button>
+      <button id="mode-stop-btn" class="btn ghost">Stop Mode</button>
+      <div id="mode-status" class="muted">Idle</div>
+
+      <hr />
+
+      <button id="refresh-btn" class="btn">Refresh Snapshot</button>
+      <button id="live-start-btn" class="btn ghost">Start Live Mode</button>
+      <button id="live-stop-btn" class="btn ghost">Stop Live Mode</button>
+      <div id="live-status" class="muted">Live mode: OFF</div>
+
+      <hr />
+
+      <div class="section">
+        <label>Custom Features (JSON)</label>
+        <textarea id="custom-features">{"dur":0.5,"spkts":3.0,"dpkts":2.0,"rate":1000}</textarea>
+      </div>
+      <button id="custom-send-btn" class="btn">Send Custom Predict</button>
+      <button id="probe-btn" class="btn ghost">Send Probe Prediction</button>
+
+      <hr />
+
+      <p class="muted">Runbook Shortcuts</p>
+      <button id="cmd-health-btn" class="btn ghost">1. Verify Services Healthy</button>
+      <button id="cmd-infer-btn" class="btn ghost">2. Show Inference Working</button>
+      <button id="cmd-drift-btn" class="btn ghost">3. Show Drift API</button>
+      <button id="cmd-gradual-btn" class="btn ghost">4. Run Gradual Demo</button>
+      <button id="cmd-sudden-btn" class="btn ghost">5. Run Sudden Demo</button>
+      <button id="cmd-normal-btn" class="btn ghost">6. Run Normal Demo</button>
+      <button id="cmd-audit-btn" class="btn ghost">7. Show Audit Evidence</button>
+      <button id="cmd-unit-btn" class="btn ghost">8. Run Unit Tests</button>
+      <button id="cmd-kafka-btn" class="btn ghost">9. Run Kafka Test</button>
+      <button id="cmd-shutdown-btn" class="btn ghost">10. Shutdown Stack</button>
+      <button id="cmd-reset-btn" class="btn">Reset Drift State</button>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h2>Live Drift Observability</h2>
+        <span id="last-updated" class="mono">Updated: --</span>
+      </header>
+
+      <section class="cards">
+        <article class="card wide">
+          <div class="head">
+            <h3>Drift Trend</h3>
+            <strong id="drift-score" class="mono">0.0000</strong>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="driftChart"></canvas>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="head">
+            <h3>Severity Gauge</h3>
+            <span id="severity-label" class="badge">NONE</span>
+          </div>
+          <div class="gauge-wrap">
+            <div class="gauge">
+              <div class="needle" id="gauge-needle"></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="head">
+            <h3>Inference Latency</h3>
+            <strong id="latency-live" class="mono">-- ms</strong>
+          </div>
+          <div class="kpi-grid">
+            <div><span>Avg</span><strong id="latency-avg">--</strong></div>
+            <div><span>Min</span><strong id="latency-min">--</strong></div>
+            <div><span>Max</span><strong id="latency-max">--</strong></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="head">
+            <h3>Window and Drift</h3>
+          </div>
+          <div class="kpi-grid two">
+            <div><span>Window Fill</span><strong id="window-fill">0 / 100</strong></div>
+            <div><span>Drifted</span><strong id="drifted-count">0 / 0</strong></div>
+            <div><span>Method</span><strong id="drift-method">--</strong></div>
+            <div><span>Features Hot</span><strong id="feature-count">0</strong></div>
+          </div>
+        </article>
+
+        <article class="card wide">
+          <div class="head"><h3>Feature Heatmap (Out of Bounds)</h3></div>
+          <div id="feature-heatmap" class="heatmap"></div>
+        </article>
+
+        <article class="card wide">
+          <div class="head"><h3>Live Command and Demo Logs</h3></div>
+          <div id="event-feed" class="feed"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="/dashboard/static/app.js"></script>
+</body>
+</html>

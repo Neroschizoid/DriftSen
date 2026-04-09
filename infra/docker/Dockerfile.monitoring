@@ -1,0 +1,23 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Install dependencies from the root requirements.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the whole project to have access to services/monitoring-service and ml/stats
+COPY . .
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV MONITORING_PORT=8001
+ENV WINDOW_SIZE=100
+ENV DRIFT_METHOD=ks
+ENV KAFKA_ENABLED=false
+
+# Expose the API port
+EXPOSE 8001
+
+# Entry point for the monitoring service
+CMD ["python", "services/monitoring-service/main.py"]

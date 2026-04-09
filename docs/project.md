@@ -76,33 +76,46 @@ Below is a chronological, phase‑by‑phase recap of the work performed on the 
 
 ---
 
-## Phase 8 – Production‑Ready Fallback & Monitoring (Future Work)
+## Phase  8 – Monitoring Service & Drift Detection (Week 2 Core)
 
 | Goal | What we wanted | How we did it | Commands used | Errors / Issues | Fixes |
 |------|----------------|---------------|---------------|-----------------|------|
-| Ensure the service runs on Render even without a managed Kafka broker. | Provide a graceful degradation path. | • Added `KAFKA_ENABLED` env‑var check at the start of `get_producer`. <br>• If disabled, the API skips Kafka production but still logs and returns predictions. | No CLI – just code change. | None (proactive). | — |
-| Add monitoring/consumer service (Week 2) | Consume `inference-events` topic to detect drift. | Planned as a separate Render background worker; not yet implemented. | — | — | — |
+| Implement real-time drift detection and alerting. | Consume logs/Kafka events and compare live distributions against training baseline via KS-test. | • Added `services/monitoring-service` with background consumer. <br>• Created `DriftEngine` with KS-test logic and `SlidingWindow` buffer. <br>• Implemented native severity classification (LOW/MEDIUM/HIGH). | ```bash\n# Run docker-unified stack\ndocker compose up --build -d\n``` | 1. **KS-Test Sensitivity**: Initial threshold (0.1) triggered false positives on 10 samples. <br>2. **Demo Insight**: Gradual drift was missed by wide thresholds. | 1. Adjusted `KS_THRESHOLD` to 0.3. <br>2. Implemented `evaluator_demo.py` with adaptive scenarios. <br>3. Relocated severity logic into core `drift_engine`. |
+
+**Key Files**  
+- `services/monitoring-service/main.py` – Fast API monitor with background consumer.
+- `services/monitoring-service/drift_engine.py` – Statistical brain (KS-Test + Severity).
+- `services/monitoring-service/sliding_window.py` – Thread-safe FIFO feature buffer.
 
 ---
 
-## Phase 9 – Final Checklist (All Tasks Completed)
+## Phase  9 – “Level 2” Evaluator Demo & Polish
 
-- **API** works via Swagger UI (`/docs`).  
-- **Model** loads once at startup and returns correct predictions.  
-- **Logs** are written to `logs/inference.log` (JSON lines).  
-- **Kafka** integration works locally; fallback works on Render.  
-- **Docker** image builds cleanly; containers start without errors.  
-- **Pre‑deployment tests** all pass (`test_pre_deployment.py`).  
-- **GitHub** repo is clean, `.gitignore` is solid.  
-- **Render** configuration documented (Docker runtime, env‑vars, health check).  
+| Goal | What we wanted | How we did it | Commands used | Errors / Issues | Fixes |
+|------|----------------|---------------|---------------|-----------------|------|
+| Prove the system works in realistic scenarios. | Create a script that simulates Normal, Gradual, and Sudden drift patterns through the API. | • Added `evaluator_demo.py` with multi-mode support. <br>• Integrated latency tracking (ms) per request. <br>• Added professional system-status messages. | ```bash\npython services/monitoring-service/evaluator_demo.py --mode gradual\n``` | 1. **Artificial Drift**: The first simulation felt scripted. | 1. Rebuilt generator to use statistical noise (std x1.0) and gradual drift multipliers. |
+
+---
+
+## Phase  10 – System Finalizing & Documentation (COMPLETE)
+
+- **Inference API** works via Swagger UI (`/docs`).  
+- **Monitoring API** live at `:8001/api/v1/monitoring/drift`.
+- **KS-Test** correctly identifies distribution shifts using training baseline.
+- **Severity Classifier** (LOW/MED/HIGH) implemented and verified.
+- **Latency Tracking** integrated into demo outputs.
+- **Docker Compose** orchestrates Inf + Mon + Kafka seamlessly.
+- **Gradual/Sudden Drift** patterns supported in `evaluator_demo.py`.
+- **Pre‑deployment tests** and **Live Demo script** all pass.
+- **Architecture & Workflow Documentation** finalized.
 
 ---
 
 ### How to Use This Summary
-1. **Read** the sections relevant to your current task (e.g., if you’re debugging Kafka, see Phase 3).  
+1. **Read** the sections relevant to your current task (e.g., if you’re debugging Monitoring, see Phase 8).  
 2. **Copy** any command you need from the “Commands used” column.  
-3. **Follow** the “Fixes” bullet points if you encounter the same error again.  
+3. **Follow** the “Fixes” bullet points if you encounter historical errors.  
 
 ---
 
-*Prepared by Antigravity – your AI coding assistant.*
+*Prepared by Antigravity — The MLOps Watchdog.*

@@ -55,6 +55,7 @@ def produce_inference_event(topic: str, request_id: str, features: dict, predict
     }
 
     try:
-        producer.send(topic, value=event)
+        # Wait for broker ack so tests and monitoring can reliably observe the event.
+        producer.send(topic, value=event).get(timeout=5)
     except Exception as e:
         logger.error(f"Kafka send failed: {e}")

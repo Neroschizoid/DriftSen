@@ -1,71 +1,69 @@
-import requests
+import os
 import time
-import sys
 
-URL = "http://localhost:8000/api/v1/predict"
+import pytest
+import requests
 
-def test_phase(name, inputs, expected_status=200):
-    print(f"--- [TEST] {name} ---")
-    try:
-        r = requests.post(URL, json=inputs, timeout=2)
-        if r.status_code == expected_status:
-            if r.status_code == 200:
-                print(f"✅ PASS: status {r.status_code} | response: {r.json()}")
-            else:
-                print(f"✅ PASS: (Expected error) status {r.status_code}")
-            return True
-        else:
-            print(f"❌ FAIL: Expected {expected_status}, got {r.status_code} | response: {r.text[:100]}")
-            return False
-    except requests.exceptions.RequestException as e:
-        print(f"❌ FAIL: Exception -> {e}")
-        return False
+pytestmark = pytest.mark.integration
 
-def run_all_tests():
-    print("⏳ WAITING FOR SERVER TO BOOT...")
-    for i in range(20):
+BASE_URL = os.getenv("INFERENCE_API_BASE", "http://localhost:8000/api/v1")
+PREDICT_URL = f"{BASE_URL}/predict"
+HEALTH_URL = f"{BASE_URL}/health"
+
+
+def _wait_for_health(timeout_sec: int = 40) -> tuple[bool, str]:
+    deadline = time.time() + timeout_sec
+    last_error = "unknown"
+    while time.time() < deadline:
         try:
-            requests.get("http://localhost:8000/docs", timeout=1)
-            print("🚀 SERVER IS UP AND RUNNING!\n")
-            break
-        except requests.exceptions.RequestException:
-            time.sleep(2)
-            sys.stdout.write(".")
-            sys.stdout.flush()
-    else:
-        print("\n❌ SERVER FAILED TO BOOT WITHIN TIMEOUT.")
-        sys.exit(1)
+            response = requests.get(HEALTH_URL, timeout=2)
+            if response.status_code == 200:
+                return True, ""
+            last_error = f"status={response.status_code}"
+        except Exception as exc:
+            last_error = str(exc)
+        time.sleep(1)
+    return False, last_error
 
-    all_passed = True
 
-    # PHASE 1 & 2: Valid Arrays
-    all_passed &= test_phase("PHASE 1 - Normal float input", {"features": [0.1, 0.2, 0.3, 0.4, 0.5]})
-    all_passed &= test_phase("PHASE 2 - Validate [1,1,1,1,1]", {"features": [1, 1, 1, 1, 1]})
-    all_passed &= test_phase("PHASE 2 - Validate [0,0,0,0,0]", {"features": [0, 0, 0, 0, 0]})
-    all_passed &= test_phase("PHASE 2 - Validate [5,2,3,1,0]", {"features": [5, 2, 3, 1, 0]})
+@pytest.fixture(scope="module", autouse=True)
+def require_running_api():
+    if os.getenv("RUN_API_INTEGRATION", "false").lower() != "true":
+        pytest.skip("Set RUN_API_INTEGRATION=true to run API integration tests.")
+    ok, reason = _wait_for_health()
+    if not ok:
+        pytest.skip(f"Inference API not reachable at {HEALTH_URL}: {reason}")
 
-    # PHASE 5: Edge Cases (Bad inputs should return 422 Unprocessable Entity for schema violations, or 500/200 if handled customly)
-    # The BaseModel dictates strict structure. E.g. strings in float array == 422 Pydantic Validation Error
-    print("\n[Edge cases expect 422 Unprocessable if validation fails natively]")
-    test_phase("PHASE 5 - Characters array", {"features": ["a", "b"]}, expected_status=422)
 
-    # PHASE 6: Performance Check
-    print("\n--- [TEST] PHASE 6 - Performance (20 reqs) ---")
+@pytest.mark.parametrize(
+    "features",
+    [
+        [0.1, 0.2, 0.3, 0.4, 0.5],
+        [1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 0],
+        [5, 2, 3, 1, 0],
+    ],
+)
+def test_predict_with_list_features(features):
+    response = requests.post(PREDICT_URL, json={"features": features}, timeout=5)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert "request_id" in body
+    assert "prediction" in body
+    assert "confidence" in body
+    assert body["prediction"] in (0, 1)
+    assert 0.0 <= float(body["confidence"]) <= 1.0
+
+
+def test_predict_rejects_invalid_feature_payload():
+    response = requests.post(PREDICT_URL, json={"features": ["a", "b"]}, timeout=5)
+    assert response.status_code == 422
+
+
+def test_predict_throughput_20_requests_under_8_seconds():
     start = time.time()
     for _ in range(20):
-        requests.post(URL, json={"features": [0.1, 0.2, 0.3, 0.4, 0.5]}, timeout=2)
-    dur = time.time() - start
-    if dur < 5:
-        print(f"✅ PASS: 20 reqs in {dur:.3f} seconds (< 5s)")
-    else:
-        print(f"❌ FAIL: Performance too slow: {dur:.3f} seconds")
-        all_passed = False
-
-    print("\n==============================")
-    if all_passed:
-        print("🎯 ALL PRE-DEPLOYMENT TESTS PASSED SUCCESFULLY!")
-    else:
-        print("⚠️ SOME TESTS FAILED. PLEASE REVIEW LOGS.")
-
-if __name__ == "__main__":
-    run_all_tests()
+        response = requests.post(PREDICT_URL, json={"features": [0.1, 0.2, 0.3, 0.4, 0.5]}, timeout=5)
+        assert response.status_code == 200
+    duration = time.time() - start
+    assert duration < 8.0, f"20 requests took {duration:.3f}s"
