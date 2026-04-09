@@ -1,0 +1,39 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environments
+.env
+venv/
+env/
+ENV/
+.venv
+.conda
+
+# IDEs
+.vscode/
+.idea/
+.gemini/
+
+# Project Specific
+logs/*.log
+/tmp/
+
+# Data & Models
+# We keep ml/models/model.pkl for Render deployment
+# data/raw/
+# data/processed/
+
+# Docker
+.dockerignore
+Docker-compose.override.yml
+
+
+
+data/raw/
+*.csv
