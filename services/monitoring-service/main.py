@@ -39,6 +39,11 @@ KAFKA_ENABLED = os.getenv("KAFKA_ENABLED", "false").lower() == "true"
 KAFKA_URL = os.getenv("KAFKA_URL", "kafka:9092")
 TOPIC = "inference-events"
 INFERENCE_URL = os.getenv("INFERENCE_URL", "http://inference:8000/api/v1")
+MONITORING_PORT = int(os.getenv("MONITORING_PORT", os.getenv("PORT", "8001")))
+SELF_MONITORING_URL = os.getenv(
+    "SELF_MONITORING_URL",
+    f"http://127.0.0.1:{MONITORING_PORT}/api/v1/monitoring",
+)
 
 SERVICE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = SERVICE_DIR.parents[1]
@@ -321,7 +326,7 @@ def _run_command(command: str) -> None:
     try:
         if command == "verify_health":
             inf = requests.get(f"{INFERENCE_URL}/health", timeout=5)
-            mon = requests.get("http://localhost:8001/api/v1/monitoring/health", timeout=5)
+            mon = requests.get(f"{SELF_MONITORING_URL}/health", timeout=5)
             _demo_log(f"inference health -> {inf.status_code} {inf.text}")
             _demo_log(f"monitoring health -> {mon.status_code} {mon.text}")
 
@@ -330,7 +335,7 @@ def _run_command(command: str) -> None:
             _demo_log(f"predict -> {resp.status_code} {resp.text}")
 
         elif command == "show_drift":
-            snapshot = requests.get("http://localhost:8001/api/v1/monitoring/drift", timeout=5)
+            snapshot = requests.get(f"{SELF_MONITORING_URL}/drift", timeout=5)
             _demo_log(f"drift -> {snapshot.status_code} {snapshot.text}")
 
         elif command == "show_audit_logs":
